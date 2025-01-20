@@ -19,14 +19,14 @@ export default async function UsersPage() {
 
   if (profile?.role !== 'admin') {
     return (
-      <div className="p-4">
+      <div className="max-w-7xl mx-auto px-4">
         <p className="text-red-600">You do not have permission to view this page.</p>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
           <h2 className="text-2xl font-bold mb-6">Users</h2>
