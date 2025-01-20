@@ -1,6 +1,7 @@
 import { ReactNode } from 'react'
 import { createClient } from '@/utils/supabase/server'
 import { MainNav } from '@/components/navigation/MainNav'
+import Sidebar from '@/components/navigation/Sidebar'
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient()
@@ -20,11 +21,14 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         userRole={profile?.role} 
         userEmail={profile?.email || user?.email} 
       />
-      <main className="py-6">
-        <div className="max-w-7xl mx-auto px-4">
-          {children}
-        </div>
-      </main>
+      <div className="flex h-[calc(100vh-4rem)]">
+        <Sidebar />
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto px-4 py-6">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   )
 } 
