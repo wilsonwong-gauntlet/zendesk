@@ -81,6 +81,17 @@ create policy "Tickets are viewable by authenticated users"
     )
   );
 
+create policy "Admins and agents can create tickets"
+  on tickets for insert
+  to authenticated
+  with check (
+    exists (
+      select 1 from profiles
+      where profiles.id = auth.uid()
+      and profiles.role in ('admin', 'agent')
+    )
+  );
+
 create policy "Customers can create tickets"
   on tickets for insert
   to authenticated
@@ -166,6 +177,79 @@ create policy "Agents and admins can create and update articles"
       select 1 from profiles
       where profiles.id = auth.uid()
       and profiles.role in ('admin', 'agent')
+    )
+  );
+
+-- Add admin bypass policies for all tables
+create policy "Admins have full access to profiles"
+  on profiles
+  to authenticated
+  using (
+    exists (
+      select 1 from profiles
+      where profiles.id = auth.uid()
+      and profiles.role = 'admin'
+    )
+  )
+  with check (
+    exists (
+      select 1 from profiles
+      where profiles.id = auth.uid()
+      and profiles.role = 'admin'
+    )
+  );
+
+create policy "Admins have full access to tickets"
+  on tickets
+  to authenticated
+  using (
+    exists (
+      select 1 from profiles
+      where profiles.id = auth.uid()
+      and profiles.role = 'admin'
+    )
+  )
+  with check (
+    exists (
+      select 1 from profiles
+      where profiles.id = auth.uid()
+      and profiles.role = 'admin'
+    )
+  );
+
+create policy "Admins have full access to ticket_messages"
+  on ticket_messages
+  to authenticated
+  using (
+    exists (
+      select 1 from profiles
+      where profiles.id = auth.uid()
+      and profiles.role = 'admin'
+    )
+  )
+  with check (
+    exists (
+      select 1 from profiles
+      where profiles.id = auth.uid()
+      and profiles.role = 'admin'
+    )
+  );
+
+create policy "Admins have full access to knowledge_base_articles"
+  on knowledge_base_articles
+  to authenticated
+  using (
+    exists (
+      select 1 from profiles
+      where profiles.id = auth.uid()
+      and profiles.role = 'admin'
+    )
+  )
+  with check (
+    exists (
+      select 1 from profiles
+      where profiles.id = auth.uid()
+      and profiles.role = 'admin'
     )
   );
 

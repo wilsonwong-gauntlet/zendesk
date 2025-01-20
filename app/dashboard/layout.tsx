@@ -1,7 +1,18 @@
 import { ReactNode } from 'react'
 import Link from 'next/link'
+import { createClient } from '@/utils/supabase/server'
 
-export default function DashboardLayout({ children }: { children: ReactNode }) {
+export default async function DashboardLayout({ children }: { children: ReactNode }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  // Get user role
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user?.id)
+    .single()
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
@@ -20,6 +31,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 >
                   Tickets
                 </Link>
+                {profile?.role === 'admin' && (
+                  <Link
+                    href="/dashboard/users"
+                    className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                  >
+                    Users
+                  </Link>
+                )}
                 <Link
                   href="/dashboard/knowledge-base"
                   className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
