@@ -36,74 +36,362 @@ import_alias = "@/*"
 page_extensions = [".tsx"]
 style_extensions = [".css"]
 
-[architecture]
-pattern = "Next.js App Router with Server Components"
-frontend_framework = "Next.js App Router"
-api_pattern = "Server Actions"
-auth_strategy = "Supabase Auth with Middleware"
-styling = "Tailwind CSS + shadcn/ui"
+architecture:
+  api_design:
+  - description: Create a new ticket
+    endpoint: /tickets
+    error_handling: HTTP status codes
+    method: POST
+    security: Authenticated
+  - description: Update the status of a ticket
+    endpoint: /tickets/{id}
+    error_handling: HTTP status codes
+    method: PUT
+    security: Authenticated
+  - description: Delete a ticket
+    endpoint: /tickets/{id}
+    error_handling: HTTP status codes
+    method: DELETE
+    security: Authenticated
+  - description: Fetch all tickets
+    endpoint: /tickets
+    error_handling: HTTP status codes
+    method: GET
+    security: Authenticated
+  - description: Fetch an agent's information
+    endpoint: /agents/{id}
+    error_handling: HTTP status codes
+    method: GET
+    security: Authenticated
+  - description: Fetch a customer's information
+    endpoint: /customers/{id}
+    error_handling: HTTP status codes
+    method: GET
+    security: Authenticated
+  - description: Retrieve a knowledge base article
+    endpoint: /knowledgeBase/{id}
+    error_handling: HTTP status codes
+    method: GET
+    security: Public
+  - description: Retrieve reports and analytics
+    endpoint: /reports
+    error_handling: HTTP status codes
+    method: GET
+    security: Authenticated
+  data_model:
+  - attributes:
+    - id
+    - issue_description
+    - status
+    - agent_id
+    - customer_id
+    - created_at
+    - updated_at
+    entity: Ticket
+    handling:
+      on_delete: Tickets are reassigned or deleted based on the business logic
+    relationships:
+    - type: one-to-one
+      with: Agent
+    - type: one-to-one
+      with: Customer
+  - attributes:
+    - id
+    - name
+    - email
+    - phone_number
+    entity: Agent
+    relationships:
+    - type: one-to-many
+      with: Ticket
+  - attributes:
+    - id
+    - name
+    - email
+    - phone_number
+    entity: Customer
+    relationships:
+    - type: one-to-many
+      with: Ticket
+  - attributes:
+    - id
+    - title
+    - content
+    - created_at
+    - updated_at
+    entity: KnowledgeBase
+    relationships: []
+  duplicate_tickets:
+    handling: System checks for duplicate tickets and merges or rejects based on the
+      business logic
+  integration_points:
+  - description: Integration with CRM for data syncing and streamlined operations
+    system: CRM
+  - description: Integration with email provider for emailing tickets and support
+      communication
+    system: Email Provider
+  - description: Integration with chat provider for live customer support
+    system: Chat Provider
+  - description: Integration with telephony system for phone support
+    system: Telephony System
+  security:
+    authentication: API endpoints require authentication
+    authorization: API endpoints have role-based access control
+  system_components:
+  - component: User Interface
+    responsibilities: Interact with users, gather inputs and display outputs
+  - component: Ticket Management System
+    responsibilities: Manage all aspects of ticket creation, updates, deletion, and
+      duplicates
+  - component: Customer Support Workflow System
+    responsibilities: Manage workflows of customer support including ticket assignments
+  - component: Knowledge Base System
+    responsibilities: Manage all knowledge base articles, their creation, updates,
+      and retrieval
+  - component: Reporting and Analytics System
+    responsibilities: Generate reports and analytics based on system data
+  - component: CRM Integration System
+    responsibilities: Handle all integrations with CRM system for data syncing and
+      streamlined operations
+deployment: {}
+implementation: {}
+requirements:
+  functional_requirements:
+  - Ticket management system
+  - Customer support workflow
+  - Knowledge base
+  - Multi-channel support (email, chat, phone)
+  - Reporting and analytics
+  - Integration capabilities with CRM system
+  non_functional_requirements:
+  - System should be user friendly - intuitive interface, easy navigation, minimal
+    learning curve
+  - System should be scalable - ability to handle increasing number of users and data
+    over time
+  - System should be reliable - consistent performance with minimal downtime
+  - System should have high performance - quick response times, efficient processing
+  - System should have high security to protect customer data - regular updates, strong
+    encryption, compliance with data protection laws
+  stakeholder_groups:
+  - Customer support agents
+  - Customers
+  - Managers
+  - System administrators
+  user_stories:
+  - As a customer support agent, I want to create, assign, and update the status of
+    tickets to track customer issues
+  - As a customer support agent, I want to use a support workflow that includes handling
+    initial customer inquiry, gathering information, resolving issue, and closing
+    the request efficiently
+  - As a customer, I want to use a knowledge base to find answers to my questions
+  - As a customer, I want to contact support through multiple channels (email, chat,
+    phone) to suit my convenience
+  - As a manager, I want to access reporting and analytics to monitor customer support
+    performance
+  - As a system administrator, I want to integrate the CRM with other systems to streamline
+    operations
+technical_design:
+  api_endpoints:
+  - description: Create a new ticket
+    endpoint: /tickets
+    error_handling: HTTP status codes
+    method: POST
+    security: Authenticated
+  - description: Update the status of a ticket
+    endpoint: /tickets/{id}
+    error_handling: HTTP status codes
+    method: PUT
+    security: Authenticated
+  - description: Delete a ticket
+    endpoint: /tickets/{id}
+    error_handling: HTTP status codes
+    method: DELETE
+    security: Authenticated
+  - description: Fetch all tickets
+    endpoint: /tickets
+    error_handling: HTTP status codes
+    method: GET
+    security: Authenticated
+  - description: Fetch an agent's information
+    endpoint: /agents/{id}
+    error_handling: HTTP status codes
+    method: GET
+    security: Authenticated
+  - description: Create a new agent
+    endpoint: /agents
+    error_handling: HTTP status codes
+    method: POST
+    security: Authenticated
+  - description: Update an agent's information
+    endpoint: /agents/{id}
+    error_handling: HTTP status codes
+    method: PUT
+    security: Authenticated
+  - description: Delete an agent
+    endpoint: /agents/{id}
+    error_handling: HTTP status codes
+    method: DELETE
+    security: Authenticated
+  - description: Fetch a customer's information
+    endpoint: /customers/{id}
+    error_handling: HTTP status codes
+    method: GET
+    security: Authenticated
+  - description: Create a new customer
+    endpoint: /customers
+    error_handling: HTTP status codes
+    method: POST
+    security: Authenticated
+  - description: Update a customer's information
+    endpoint: /customers/{id}
+    error_handling: HTTP status codes
+    method: PUT
+    security: Authenticated
+  - description: Delete a customer
+    endpoint: /customers/{id}
+    error_handling: HTTP status codes
+    method: DELETE
+    security: Authenticated
+  - description: Retrieve a knowledge base article
+    endpoint: /knowledgeBase/{id}
+    error_handling: HTTP status codes
+    method: GET
+    security: Public
+  - description: Create a new knowledge base article
+    endpoint: /knowledgeBase
+    error_handling: HTTP status codes
+    method: POST
+    security: Authenticated
+  - description: Update a knowledge base article
+    endpoint: /knowledgeBase/{id}
+    error_handling: HTTP status codes
+    method: PUT
+    security: Authenticated
+  - description: Delete a knowledge base article
+    endpoint: /knowledgeBase/{id}
+    error_handling: HTTP status codes
+    method: DELETE
+    security: Authenticated
+  - description: Retrieve reports and analytics
+    endpoint: /reports
+    error_handling: HTTP status codes
+    method: GET
+    security: Authenticated
+  database_schema:
+  - backup_strategy: Daily backups
+    failover_strategy: Secondary standby database
+    fields:
+    - name: id
+      options:
+      - PRIMARY KEY
+      - AUTOINCREMENT
+      type: INTEGER
+    - name: issue_description
+      type: TEXT
+    - name: status
+      type: TEXT
+    - name: agent_id
+      relation:
+        field: id
+        table: Agent
+      type: INTEGER
+    - name: customer_id
+      relation:
+        field: id
+        table: Customer
+      type: INTEGER
+    - name: created_at
+      type: DATETIME
+    - name: updated_at
+      type: DATETIME
+    table: Ticket
+  - backup_strategy: Daily backups
+    failover_strategy: Secondary standby database
+    fields:
+    - name: id
+      options:
+      - PRIMARY KEY
+      - AUTOINCREMENT
+      type: INTEGER
+    - name: name
+      type: TEXT
+    - name: email
+      security: Encrypted
+      type: TEXT
+    - name: phone_number
+      security: Encrypted
+      type: TEXT
+    table: Agent
+  - backup_strategy: Daily backups
+    failover_strategy: Secondary standby database
+    fields:
+    - name: id
+      options:
+      - PRIMARY KEY
+      - AUTOINCREMENT
+      type: INTEGER
+    - name: name
+      type: TEXT
+    - name: email
+      security: Encrypted
+      type: TEXT
+    - name: phone_number
+      security: Encrypted
+      type: TEXT
+    table: Customer
+  - backup_strategy: Daily backups
+    failover_strategy: Secondary standby database
+    fields:
+    - name: id
+      options:
+      - PRIMARY KEY
+      - AUTOINCREMENT
+      type: INTEGER
+    - name: title
+      type: TEXT
+    - name: content
+      type: TEXT
+    - name: created_at
+      type: DATETIME
+    - name: updated_at
+      type: DATETIME
+    table: KnowledgeBase
+  service_layer:
+  - description: Handle ticket creation, updating, deletion, and duplicate checking
+    service: Ticket Management Service
+  - description: Handle agent data management
+    service: Agent Management Service
+  - description: Handle customer data management
+    service: Customer Management Service
+  - description: Handle knowledge base article management
+    service: Knowledge Base Service
+  - description: Handle generation of reports and analytics
+    service: Reporting Service
+  - description: Handle integration with CRM, email, chat, and telephony systems.
+      Scaled to handle traffic and complexity of integrated systems
+    service: Integration Service
+  system_design:
+    performance: Optimized for speed and responsiveness
+    scalability: Designed to handle an increase in load
+  ui_ux_components:
+  - component: Ticket List
+    description: Display a list of all tickets
+  - component: Ticket Form
+    data_validation: Form fields checked for validity before submission
+    description: Form for creating and editing tickets
+  - component: Agent Profile
+    data_validation: Form fields checked for validity before submission
+    description: Display agent information
+  - component: Customer Profile
+    data_validation: Form fields checked for validity before submission
+    description: Display customer information
+  - component: Knowledge Base Article
+    data_validation: Form fields checked for validity before submission
+    description: Display a specific knowledge base article
+  - component: Report Viewer
+    description: Display generated reports and analytics
+testing: {}
 
-[data_model]
-database = "PostgreSQL on Supabase"
-auth = "@supabase/ssr"
-client = "@supabase/supabase-js"
-
-[components]
-ui_framework = "shadcn/ui"
-radix_components = [
-  "@radix-ui/react-checkbox",
-  "@radix-ui/react-dropdown-menu",
-  "@radix-ui/react-label",
-  "@radix-ui/react-slot"
-]
-styling = [
-  "class-variance-authority",
-  "clsx",
-  "tailwind-merge"
-]
-
-[dependencies]
-next = "latest"
-react = "19.0.0"
-react_dom = "19.0.0"
-typescript = "5.7.2"
-tailwindcss = "3.4.17"
-postcss = "8.4.49"
-
-[development]
-prettier = "^3.3.3"
-tailwindcss_animate = "^1.0.7"
-next_themes = "^0.4.3"
-lucide_react = "^0.468.0"
-
-[requirements]
-project_type = "web_application"
-project_name = "Zendesk Clone"
-target_users = "Customer support teams"
-core_features = [
-  "Ticket management",
-  "Customer communication",
-  "Knowledge base",
-  "Analytics dashboard"
-]
-
-[performance]
-target_lighthouse_score = 95
-image_optimization = true
-code_splitting = true
-lazy_loading = true
-
-[testing]
-unit_test_framework = "Vitest"
-e2e_framework = "Playwright"
-coverage_threshold = 80
-
-[deployment]
-platform = "Vercel"
-ci_cd = "GitHub Actions"
-environment_strategy = "Development, Staging, Production"
-
-[documentation]
-api_docs = "OpenAPI/Swagger"
-component_docs = "Storybook"
-style_guide = "Tailwind CSS + shadcn/ui" 
+[auth]
+The auth-helpers (@supabase/auth-helpers-nextjs) are now deprecated. Do not use @supabase/auth-helpers-nextjs, Use @supabase/ssr to set up Auth for your Next.js app. See the Next.js Server-Side Auth guide to learn how.
+https://supabase.com/docs/guides/auth/server-side/nextjs
