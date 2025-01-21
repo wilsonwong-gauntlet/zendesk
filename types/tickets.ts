@@ -1,7 +1,62 @@
-import type { Database } from './database.types'
+import { Database } from './database.types'
 
-export type TicketStatus = Database['public']['Tables']['tickets']['Row']['status']
-export type TicketPriority = Database['public']['Tables']['tickets']['Row']['priority']
+export type TicketStatus = 'new' | 'open' | 'pending' | 'resolved' | 'closed'
+export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent'
+export type RelationshipType = 'merge' | 'link' | 'duplicate'
+
+export interface SLAPolicy {
+  id: string
+  name: string
+  description: string | null
+  first_response_hours: number
+  resolution_hours: number
+  business_hours: boolean
+  priority: TicketPriority[]
+  created_at: string
+  updated_at: string
+}
+
+export interface TicketRelationship {
+  id: string
+  parent_ticket_id: string
+  child_ticket_id: string
+  relationship_type: RelationshipType
+  created_by: string
+  created_at: string
+  parent?: Ticket
+  child?: Ticket
+}
+
+export interface Ticket {
+  id: string
+  title: string
+  description: string
+  status: TicketStatus
+  priority: TicketPriority
+  created_by: string
+  assigned_to: string | null
+  metadata: Record<string, any>
+  created_at: string
+  updated_at: string
+  // SLA fields
+  sla_policy_id: string | null
+  first_response_deadline: string | null
+  resolution_deadline: string | null
+  first_response_breach: boolean
+  resolution_breach: boolean
+  // Relationships (to be populated by join queries)
+  relationships?: TicketRelationship[]
+  child_relationships?: TicketRelationship[]
+  parent_tickets?: Ticket[]
+  child_tickets?: Ticket[]
+}
+
+export interface TicketWithRelations extends Ticket {
+  relationships: TicketRelationship[]
+  child_relationships: TicketRelationship[]
+  parent_tickets: Ticket[]
+  child_tickets: Ticket[]
+}
 
 export interface StatusTransition {
   from: TicketStatus
