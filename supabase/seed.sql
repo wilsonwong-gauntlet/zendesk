@@ -1,130 +1,113 @@
--- Create extension if not exists
+-- Enable required extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- Seed admin user
-INSERT INTO auth.users (
-  id,
-  instance_id,
-  email,
-  encrypted_password,
-  email_confirmed_at,
-  created_at,
-  updated_at,
-  raw_app_meta_data,
-  raw_user_meta_data,
-  aud,
-  role
-)
-VALUES (
-  'd7bed82c-89ac-4d93-96e1-fb5589c3ed65',
-  '00000000-0000-0000-0000-000000000000',
-  'admin@example.com',
-  crypt('admin123', gen_salt('bf')),
-  now(),
-  now(),
-  now(),
-  '{"provider": "email", "providers": ["email"]}'::jsonb,
-  '{"full_name": "Admin User"}'::jsonb,
-  'authenticated',
-  'authenticated'
+-- Ensure auth schema exists
+CREATE SCHEMA IF NOT EXISTS auth;
+
+-- Create import schema and users table
+CREATE SCHEMA IF NOT EXISTS import;
+
+CREATE TABLE IF NOT EXISTS import.users (
+    user_id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email text NOT NULL,
+    password text NOT NULL,
+    username text NOT NULL,
+    full_name text NOT NULL,
+    role text NOT NULL,
+    cc text DEFAULT 'US'
 );
 
--- Update admin role
-UPDATE profiles 
-SET role = 'admin'
-WHERE id = 'd7bed82c-89ac-4d93-96e1-fb5589c3ed65';
-
--- Seed agent users
-INSERT INTO auth.users (
-  id,
-  instance_id,
-  email,
-  encrypted_password,
-  email_confirmed_at,
-  created_at,
-  updated_at,
-  raw_app_meta_data,
-  raw_user_meta_data,
-  aud,
-  role
-)
+-- Insert test users into import table
+INSERT INTO import.users (user_id, email, password, username, full_name, role)
 VALUES
-(
-  'b5a2c24e-1f6e-4401-b4c3-a1e0f5c48e19',
-  '00000000-0000-0000-0000-000000000000',
-  'agent1@example.com',
-  crypt('agent123', gen_salt('bf')),
-  now(),
-  now(),
-  now(),
-  '{"provider": "email", "providers": ["email"]}'::jsonb,
-  '{"full_name": "Sarah Johnson"}'::jsonb,
-  'authenticated',
-  'authenticated'
-),
-(
-  'c12e12f9-02a8-4f59-9e3b-ea3bf9d2f632',
-  '00000000-0000-0000-0000-000000000000',
-  'agent2@example.com',
-  crypt('agent123', gen_salt('bf')),
-  now(),
-  now(),
-  now(),
-  '{"provider": "email", "providers": ["email"]}'::jsonb,
-  '{"full_name": "Michael Chen"}'::jsonb,
-  'authenticated',
-  'authenticated'
-);
+    ('d7bed82c-89ac-4d93-96e1-fb5589c3ed65', 'admin@example.com', 'admin123', 'admin', 'Admin User', 'admin'),
+    ('b5a2c24e-1f6e-4401-b4c3-a1e0f5c48e19', 'agent1@example.com', 'agent123', 'agent1', 'Sarah Johnson', 'agent'),
+    ('c12e12f9-02a8-4f59-9e3b-ea3bf9d2f632', 'agent2@example.com', 'agent123', 'agent2', 'Michael Chen', 'agent'),
+    ('e9d2c6f4-1234-5678-90ab-cdef01234567', 'customer1@example.com', 'customer123', 'customer1', 'John Smith', 'customer'),
+    ('f8c3b7a2-9876-5432-10fe-dcba09876543', 'customer2@example.com', 'customer123', 'customer2', 'Emma Wilson', 'customer');
 
--- Update agent roles
-UPDATE profiles 
-SET role = 'agent'
-WHERE id IN (
-  'b5a2c24e-1f6e-4401-b4c3-a1e0f5c48e19',
-  'c12e12f9-02a8-4f59-9e3b-ea3bf9d2f632'
-);
-
--- Seed customer users
+-- Create auth users from import table
 INSERT INTO auth.users (
-  id,
-  instance_id,
-  email,
-  encrypted_password,
-  email_confirmed_at,
-  created_at,
-  updated_at,
-  raw_app_meta_data,
-  raw_user_meta_data,
-  aud,
-  role
+    instance_id,
+    id,
+    aud,
+    role,
+    email,
+    encrypted_password,
+    email_confirmed_at,
+    recovery_sent_at,
+    last_sign_in_at,
+    raw_app_meta_data,
+    raw_user_meta_data,
+    created_at,
+    updated_at,
+    confirmation_token,
+    email_change,
+    email_change_token_new,
+    recovery_token
 )
-VALUES
-(
-  'e9d2c6f4-1234-5678-90ab-cdef01234567',
-  '00000000-0000-0000-0000-000000000000',
-  'customer1@example.com',
-  crypt('customer123', gen_salt('bf')),
-  now(),
-  now(),
-  now(),
-  '{"provider": "email", "providers": ["email"]}'::jsonb,
-  '{"full_name": "John Smith"}'::jsonb,
-  'authenticated',
-  'authenticated'
-),
-(
-  'f8c3b7a2-9876-5432-10fe-dcba09876543',
-  '00000000-0000-0000-0000-000000000000',
-  'customer2@example.com',
-  crypt('customer123', gen_salt('bf')),
-  now(),
-  now(),
-  now(),
-  '{"provider": "email", "providers": ["email"]}'::jsonb,
-  '{"full_name": "Emma Wilson"}'::jsonb,
-  'authenticated',
-  'authenticated'
-);
+SELECT
+    '00000000-0000-0000-0000-000000000000',
+    user_id,
+    'authenticated' AS aud,
+    'authenticated' AS role,
+    email,
+    crypt(password, gen_salt('bf')),
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP,
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    jsonb_build_object(
+        'username', username,
+        'full_name', full_name,
+        'role', role,
+        'country_code', cc
+    ),
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP,
+    '',
+    '',
+    '',
+    ''
+FROM
+    import.users
+ON CONFLICT (id) DO NOTHING;
+
+-- Create auth user identities
+INSERT INTO auth.identities (
+    user_id,
+    provider_id,
+    identity_data,
+    provider,
+    last_sign_in_at,
+    created_at,
+    updated_at
+)
+SELECT
+    user_id,
+    user_id,
+    format('{"sub":"%s","email":"%s"}', user_id::text, email)::jsonb,
+    'email',
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP
+FROM
+    import.users
+ON CONFLICT (provider_id, provider) DO NOTHING;
+
+-- Create profiles for all users (if not created by trigger)
+INSERT INTO public.profiles (id, email, role, full_name)
+SELECT 
+    user_id,
+    email,
+    role,
+    full_name
+FROM import.users
+ON CONFLICT (id) DO UPDATE
+SET 
+    role = EXCLUDED.role,
+    full_name = EXCLUDED.full_name;
 
 -- Seed chat channels
 INSERT INTO channels (id, name, type, is_active, config)

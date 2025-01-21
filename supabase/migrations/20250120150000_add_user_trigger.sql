@@ -1,9 +1,23 @@
 -- Create a function to handle new user signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
+DECLARE
+  default_role text;
 BEGIN
-  INSERT INTO public.profiles (id, email, role)
-  VALUES (new.id, new.email, 'customer');
+  -- Check if role is specified in metadata
+  IF new.raw_user_meta_data->>'role' IS NOT NULL THEN
+    default_role := new.raw_user_meta_data->>'role';
+  ELSE
+    default_role := 'customer';
+  END IF;
+
+  INSERT INTO public.profiles (id, email, role, full_name)
+  VALUES (
+    new.id,
+    new.email,
+    default_role,
+    new.raw_user_meta_data->>'full_name'
+  );
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
