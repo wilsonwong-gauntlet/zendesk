@@ -1,92 +1,113 @@
-import { cookies } from 'next/headers'
 import { createClient } from '@/utils/supabase/server'
-import { redirect } from 'next/navigation'
-import TicketDetailView from '@/components/tickets/TicketDetailView'
+import { notFound } from 'next/navigation'
+import StatusBadge from '@/components/tickets/StatusBadge'
+import PriorityBadge from '@/components/tickets/PriorityBadge'
+import TicketActions from '@/components/tickets/TicketActions'
+import TicketMessages from '@/components/tickets/TicketMessages'
 
-type PageProps = {
-  params: {
-    id: string
-  }
-}
-
-type DatabaseTicket = {
-  id: string
-  title: string
-  description: string
-  status: 'new' | 'open' | 'pending' | 'resolved' | 'closed'
-  priority: 'low' | 'medium' | 'high' | 'urgent'
-  assigned_to: string | null
-  created_at: string
-  creator: {
-    full_name: string | null
-    email: string
-  }[] | null
-  assignee: {
-    full_name: string | null
-    email: string
-  }[] | null
-}
-
-export default async function TicketPage({ params }: PageProps) {
-  const cookieStore = cookies()
+export default async function TicketPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
 
-  // Get the current user and their role
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  
-  if (userError || !user) {
-    redirect('/auth/login')
-  }
-
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profileError) {
-    console.error('Error fetching profile:', profileError)
-    redirect('/auth/login')
-  }
-
-  // Fetch the ticket details
-  const { data: rawTicket, error: ticketError } = await supabase
+  // Get ticket with creator and assignee profiles
+  const { data: ticket, error } = await supabase
     .from('tickets')
     .select(`
-      id,
-      title,
-      description,
-      status,
-      priority,
-      assigned_to,
-      created_at,
-      creator:profiles!tickets_created_by_fkey (
-        full_name,
-        email
-      ),
-      assignee:profiles!tickets_assigned_to_fkey (
-        full_name,
-        email
-      )
+      *,
+      creator:profiles!tickets_created_by_fkey(id, full_name, email, role),
+      assignee:profiles!tickets_assigned_to_fkey(id, full_name, email, role)
     `)
     .eq('id', params.id)
     .single()
 
-  if (ticketError) {
-    console.error('Error fetching ticket:', ticketError)
-    throw new Error('Failed to fetch ticket')
+  if (error || !ticket) {
+    notFound()
   }
 
-  if (!rawTicket) {
-    throw new Error('Ticket not found')
-  }
+  // Get current user's role
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user?.id)
+    .single()
 
-  const ticket = rawTicket as DatabaseTicket
-  const formattedTicket = {
-    ...ticket,
-    creator: ticket.creator?.[0] || null,
-    assignee: ticket.assignee?.[0] || null
-  }
+  const userRole = profile?.role
 
-  return <TicketDetailView ticket={formattedTicket} userRole={profile?.role || null} />
+  return (
+    <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <div className="px-4 py-4 sm:px-0">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold text-gray-900">Ticket #{ticket.id.split('-')[0]}</h1>
+          <TicketActions ticket={ticket} userRole={userRole} />
+        </div>
+
+        <div className="mt-6 border-t border-gray-100">
+          <dl className="divide-y divide-gray-100">
+            <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">Title</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                {ticket.title}
+              </dd>
+            </div>
+
+            <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">Status</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                <StatusBadge status={ticket.status} />
+              </dd>
+            </div>
+
+            <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">Priority</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                <PriorityBadge priority={ticket.priority} />
+              </dd>
+            </div>
+
+            <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">Created By</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                {ticket.creator.full_name || ticket.creator.email}
+              </dd>
+            </div>
+
+            {ticket.assignee && (
+              <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+                <dt className="text-sm font-medium leading-6 text-gray-900">Assigned To</dt>
+                <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                  {ticket.assignee.full_name || ticket.assignee.email}
+                </dd>
+              </div>
+            )}
+
+            <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">Description</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                {ticket.description}
+              </dd>
+            </div>
+
+            <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">Created At</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                {new Date(ticket.created_at).toLocaleString()}
+              </dd>
+            </div>
+
+            <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">Last Updated</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                {new Date(ticket.updated_at).toLocaleString()}
+              </dd>
+            </div>
+          </dl>
+        </div>
+
+        {/* Ticket Messages */}
+        <div className="mt-8 border-t border-gray-100">
+          <TicketMessages ticketId={ticket.id} userRole={userRole} />
+        </div>
+      </div>
+    </div>
+  )
 } 

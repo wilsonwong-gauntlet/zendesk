@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
 
@@ -9,25 +9,13 @@ type Message = {
   message: string
   created_at: string
   is_internal: boolean
+  sender_id: string
   sender: {
     id: string
     full_name: string | null
     email: string
     role: string
-  } | null
-}
-
-type DatabaseMessage = {
-  id: string
-  message: string
-  created_at: string
-  is_internal: boolean
-  sender: {
-    id: string
-    full_name: string | null
-    email: string
-    role: string
-  }[] | null
+  }
 }
 
 type TicketMessagesProps = {
@@ -41,7 +29,6 @@ export default function TicketMessages({ ticketId, userRole }: TicketMessagesPro
   const [isInternal, setIsInternal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [usePolling, setUsePolling] = useState(false)
   
   const router = useRouter()
   const supabase = createBrowserClient(
@@ -51,45 +38,29 @@ export default function TicketMessages({ ticketId, userRole }: TicketMessagesPro
 
   const canAddInternalNotes = userRole === 'admin' || userRole === 'agent'
 
-  const fetchMessages = useCallback(async () => {
-    const { data: rawData, error } = await supabase
-      .from('ticket_messages')
-      .select(`
-        id,
-        message,
-        created_at,
-        is_internal,
-        sender:profiles!ticket_messages_sender_id_fkey (
-          id,
-          full_name,
-          email,
-          role
-        )
-      `)
-      .eq('ticket_id', ticketId)
-      .order('created_at', { ascending: true })
-
-    if (error) {
-      console.error('Error fetching messages:', error)
-      return
-    }
-
-    if (rawData) {
-      const data = rawData as DatabaseMessage[]
-      const typedMessages = data.map((msg) => ({
-        ...msg,
-        sender: msg.sender?.[0] || null
-      }))
-      setMessages(typedMessages)
-    }
-  }, [ticketId, supabase])
-
   useEffect(() => {
+    const fetchMessages = async () => {
+      const { data, error } = await supabase
+        .from('ticket_messages_with_sender')
+        .select('*')
+        .eq('ticket_id', ticketId)
+        .order('created_at', { ascending: true })
+
+      if (error) {
+        console.error('Error fetching messages:', error)
+        return
+      }
+
+      if (data) {
+        setMessages(data)
+      }
+    }
+
     fetchMessages()
 
-    // Try to set up realtime subscription
+    // Set up realtime subscription
     const channel = supabase
-      .channel('ticket_messages')
+      .channel('ticket_messages_with_sender')
       .on(
         'postgres_changes',
         {
@@ -98,63 +69,30 @@ export default function TicketMessages({ ticketId, userRole }: TicketMessagesPro
           table: 'ticket_messages',
           filter: `ticket_id=eq.${ticketId}`
         },
-        (payload) => {
-          // Fetch the complete message with sender info
-          const fetchNewMessage = async () => {
-            const { data: rawData } = await supabase
-              .from('ticket_messages')
-              .select(`
-                id,
-                message,
-                created_at,
-                is_internal,
-                sender:profiles!ticket_messages_sender_id_fkey (
-                  id,
-                  full_name,
-                  email,
-                  role
-                )
-              `)
-              .eq('id', payload.new.id)
-              .single()
+        async (payload) => {
+          // Fetch the new message from our view to get the complete data
+          const { data, error } = await supabase
+            .from('ticket_messages_with_sender')
+            .select('*')
+            .eq('id', payload.new.id)
+            .single()
 
-            if (rawData) {
-              const data = rawData as DatabaseMessage
-              const typedMessage = {
-                ...data,
-                sender: data.sender?.[0] || null
-              }
-              setMessages(prev => [...prev, typedMessage])
-            }
+          if (error) {
+            console.error('Error fetching new message:', error)
+            return
           }
-          fetchNewMessage()
+
+          if (data) {
+            setMessages(prev => [...prev, data])
+          }
         }
       )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Successfully subscribed to real-time updates')
-          setUsePolling(false)
-        } else {
-          console.log('Failed to subscribe to real-time updates, falling back to polling')
-          setUsePolling(true)
-        }
-      })
+      .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [ticketId, supabase, fetchMessages])
-
-  // Fallback to polling if real-time updates fail
-  useEffect(() => {
-    if (!usePolling) return
-
-    const pollInterval = setInterval(() => {
-      fetchMessages()
-    }, 5000) // Poll every 5 seconds
-
-    return () => clearInterval(pollInterval)
-  }, [usePolling, fetchMessages])
+  }, [ticketId, supabase])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -180,11 +118,6 @@ export default function TicketMessages({ ticketId, userRole }: TicketMessagesPro
 
       if (insertError) throw insertError
 
-      // If we're using polling, fetch messages immediately after insert
-      if (usePolling) {
-        await fetchMessages()
-      }
-
       setNewMessage('')
       setIsInternal(false)
     } catch (err) {
@@ -200,7 +133,7 @@ export default function TicketMessages({ ticketId, userRole }: TicketMessagesPro
       
       <div className="mt-4 space-y-6">
         {messages.map((message) => {
-          const senderName = message.sender?.full_name || message.sender?.email || 'Unknown'
+          const senderName = message.sender.full_name || message.sender.email
           
           return (
             <div 
