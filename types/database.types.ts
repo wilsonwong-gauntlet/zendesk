@@ -78,6 +78,8 @@ export interface Database {
           message: string
           is_internal: boolean
           created_at: string
+          channel_id: string | null
+          metadata: Json
         }
         Insert: {
           id?: string
@@ -86,6 +88,8 @@ export interface Database {
           message: string
           is_internal?: boolean
           created_at?: string
+          channel_id?: string
+          metadata?: Json
         }
         Update: {
           id?: string
@@ -94,6 +98,37 @@ export interface Database {
           message?: string
           is_internal?: boolean
           created_at?: string
+          channel_id?: string
+          metadata?: Json
+        }
+      }
+      channels: {
+        Row: {
+          id: string
+          name: string
+          type: 'email' | 'chat' | 'phone' | 'web' | 'api'
+          config: Json
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          type: 'email' | 'chat' | 'phone' | 'web' | 'api'
+          config?: Json
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          type?: 'email' | 'chat' | 'phone' | 'web' | 'api'
+          config?: Json
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
         }
       }
       knowledge_base_articles: {

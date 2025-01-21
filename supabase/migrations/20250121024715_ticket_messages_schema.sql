@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS ticket_messages (
     message TEXT NOT NULL,
     is_internal BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    metadata JSONB DEFAULT '{}'::jsonb
 );
 
 -- Drop existing constraints if they exist

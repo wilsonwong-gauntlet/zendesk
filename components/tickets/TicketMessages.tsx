@@ -10,6 +10,10 @@ type Message = {
   created_at: string
   is_internal: boolean
   sender_id: string
+  channel_id: string | null
+  channel_name: string | null
+  channel_type: 'email' | 'chat' | 'phone' | 'web' | 'api' | null
+  metadata: any
   sender: {
     id: string
     full_name: string | null
@@ -142,14 +146,27 @@ export default function TicketMessages({ ticketId, userRole }: TicketMessagesPro
             >
               <div className="flex-1 space-y-1">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-gray-900">
-                    {senderName}
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-sm font-medium text-gray-900">
+                      {senderName}
+                    </h3>
                     {message.is_internal && (
-                      <span className="ml-2 inline-flex items-center rounded-md bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
+                      <span className="inline-flex items-center rounded-md bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
                         Internal Note
                       </span>
                     )}
-                  </h3>
+                    {message.channel_type && message.channel_type !== 'web' && (
+                      <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
+                        message.channel_type === 'email' ? 'bg-blue-100 text-blue-800' :
+                        message.channel_type === 'chat' ? 'bg-green-100 text-green-800' :
+                        message.channel_type === 'phone' ? 'bg-purple-100 text-purple-800' :
+                        message.channel_type === 'api' ? 'bg-gray-100 text-gray-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {message.channel_type}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500">
                     {new Date(message.created_at).toLocaleString()}
                   </p>
