@@ -1,0 +1,283 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { createBrowserClient } from '@supabase/ssr'
+import { useRouter } from 'next/navigation'
+
+type Message = {
+  id: string
+  message: string
+  created_at: string
+  is_internal: boolean
+  sender: {
+    id: string
+    full_name: string | null
+    email: string
+    role: string
+  } | null
+}
+
+type DatabaseMessage = {
+  id: string
+  message: string
+  created_at: string
+  is_internal: boolean
+  sender: {
+    id: string
+    full_name: string | null
+    email: string
+    role: string
+  }[] | null
+}
+
+type TicketMessagesProps = {
+  ticketId: string
+  userRole: 'admin' | 'agent' | 'customer' | null
+}
+
+export default function TicketMessages({ ticketId, userRole }: TicketMessagesProps) {
+  const [messages, setMessages] = useState<Message[]>([])
+  const [newMessage, setNewMessage] = useState('')
+  const [isInternal, setIsInternal] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [usePolling, setUsePolling] = useState(false)
+  
+  const router = useRouter()
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  const canAddInternalNotes = userRole === 'admin' || userRole === 'agent'
+
+  const fetchMessages = useCallback(async () => {
+    const { data: rawData, error } = await supabase
+      .from('ticket_messages')
+      .select(`
+        id,
+        message,
+        created_at,
+        is_internal,
+        sender:profiles!ticket_messages_sender_id_fkey (
+          id,
+          full_name,
+          email,
+          role
+        )
+      `)
+      .eq('ticket_id', ticketId)
+      .order('created_at', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching messages:', error)
+      return
+    }
+
+    if (rawData) {
+      const data = rawData as DatabaseMessage[]
+      const typedMessages = data.map((msg) => ({
+        ...msg,
+        sender: msg.sender?.[0] || null
+      }))
+      setMessages(typedMessages)
+    }
+  }, [ticketId, supabase])
+
+  useEffect(() => {
+    fetchMessages()
+
+    // Try to set up realtime subscription
+    const channel = supabase
+      .channel('ticket_messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'ticket_messages',
+          filter: `ticket_id=eq.${ticketId}`
+        },
+        (payload) => {
+          // Fetch the complete message with sender info
+          const fetchNewMessage = async () => {
+            const { data: rawData } = await supabase
+              .from('ticket_messages')
+              .select(`
+                id,
+                message,
+                created_at,
+                is_internal,
+                sender:profiles!ticket_messages_sender_id_fkey (
+                  id,
+                  full_name,
+                  email,
+                  role
+                )
+              `)
+              .eq('id', payload.new.id)
+              .single()
+
+            if (rawData) {
+              const data = rawData as DatabaseMessage
+              const typedMessage = {
+                ...data,
+                sender: data.sender?.[0] || null
+              }
+              setMessages(prev => [...prev, typedMessage])
+            }
+          }
+          fetchNewMessage()
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to real-time updates')
+          setUsePolling(false)
+        } else {
+          console.log('Failed to subscribe to real-time updates, falling back to polling')
+          setUsePolling(true)
+        }
+      })
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [ticketId, supabase, fetchMessages])
+
+  // Fallback to polling if real-time updates fail
+  useEffect(() => {
+    if (!usePolling) return
+
+    const pollInterval = setInterval(() => {
+      fetchMessages()
+    }, 5000) // Poll every 5 seconds
+
+    return () => clearInterval(pollInterval)
+  }, [usePolling, fetchMessages])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newMessage.trim()) return
+
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('You must be logged in to add a message')
+
+      const { error: insertError } = await supabase
+        .from('ticket_messages')
+        .insert([
+          {
+            ticket_id: ticketId,
+            sender_id: user.id,
+            message: newMessage.trim(),
+            is_internal: isInternal && canAddInternalNotes
+          }
+        ])
+
+      if (insertError) throw insertError
+
+      // If we're using polling, fetch messages immediately after insert
+      if (usePolling) {
+        await fetchMessages()
+      }
+
+      setNewMessage('')
+      setIsInternal(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send message')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="mt-8">
+      <h2 className="text-lg font-medium text-gray-900">Messages</h2>
+      
+      <div className="mt-4 space-y-6">
+        {messages.map((message) => {
+          const senderName = message.sender?.full_name || message.sender?.email || 'Unknown'
+          
+          return (
+            <div 
+              key={message.id}
+              className={`flex space-x-3 ${message.is_internal ? 'bg-yellow-50 p-4 rounded-lg' : ''}`}
+            >
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-gray-900">
+                    {senderName}
+                    {message.is_internal && (
+                      <span className="ml-2 inline-flex items-center rounded-md bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
+                        Internal Note
+                      </span>
+                    )}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {new Date(message.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <p className="text-sm text-gray-500">{message.message}</p>
+              </div>
+            </div>
+          )
+        })}
+
+        {error && (
+          <div className="rounded-md bg-red-50 p-4">
+            <div className="flex">
+              <div className="text-sm text-red-700">{error}</div>
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="mt-6">
+          <div>
+            <label htmlFor="message" className="sr-only">
+              Message
+            </label>
+            <textarea
+              id="message"
+              name="message"
+              rows={3}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              placeholder="Add a message..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+            />
+          </div>
+
+          <div className="mt-3 flex items-center justify-between">
+            {canAddInternalNotes && (
+              <div className="flex items-center">
+                <input
+                  id="internal"
+                  name="internal"
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  checked={isInternal}
+                  onChange={(e) => setIsInternal(e.target.checked)}
+                />
+                <label htmlFor="internal" className="ml-2 text-sm text-gray-500">
+                  Internal note
+                </label>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting || !newMessage.trim()}
+              className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+            >
+              {isSubmitting ? 'Sending...' : 'Send'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+} 
