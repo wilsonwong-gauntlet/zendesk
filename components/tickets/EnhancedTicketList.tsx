@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import type { Database } from '@/types/database.types'
+import { useRouter } from 'next/navigation'
 import {
   ChevronDownIcon,
   ChevronUpIcon,
@@ -39,6 +40,7 @@ const columns: Column[] = [
 ]
 
 export default function EnhancedTicketList() {
+  const router = useRouter()
   const [tickets, setTickets] = useState<TicketWithProfiles[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -260,9 +262,9 @@ export default function EnhancedTicketList() {
           </thead>
           <tbody className="divide-y divide-gray-200 bg-white">
             {tickets.map((ticket) => (
-              <tr
+              <tr 
                 key={ticket.id}
-                className={selectedTickets.includes(ticket.id) ? 'bg-gray-50' : undefined}
+                className="hover:bg-gray-50"
               >
                 <td className="relative w-12 px-6 sm:w-16 sm:px-8">
                   <input
@@ -276,8 +278,17 @@ export default function EnhancedTicketList() {
                   #{ticket.id.split('-')[0]}
                 </td>
                 <td className="px-3 py-4 text-sm text-gray-900">
-                  <div className="font-medium">{ticket.title}</div>
-                  <div className="text-gray-500 truncate max-w-md">{ticket.description}</div>
+                  <div>
+                    <a 
+                      href={`/tickets/${ticket.id}`}
+                      className="font-medium text-indigo-600 hover:text-indigo-900 hover:underline"
+                    >
+                      {ticket.title}
+                    </a>
+                    <div className="text-gray-500 truncate max-w-md">
+                      {ticket.description}
+                    </div>
+                  </div>
                 </td>
                 <td className="whitespace-nowrap px-3 py-4 text-sm">
                   <button
