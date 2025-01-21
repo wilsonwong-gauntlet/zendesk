@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import type { Database } from '@/types/database.types'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   ChevronDownIcon,
   ChevronUpIcon,
@@ -41,6 +41,7 @@ const columns: Column[] = [
 
 export default function EnhancedTicketList() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [tickets, setTickets] = useState<TicketWithProfiles[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -54,6 +55,10 @@ export default function EnhancedTicketList() {
   const [selectedTicketForPriority, setSelectedTicketForPriority] = useState<TicketWithProfiles | null>(null)
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false)
   const [selectedTicketForAssignment, setSelectedTicketForAssignment] = useState<TicketWithProfiles | null>(null)
+  
+  // Get current filters from URL
+  const activeStatus = searchParams.get('status')
+  const activePriority = searchParams.get('priority')
   
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -81,14 +86,26 @@ export default function EnhancedTicketList() {
 
   const fetchTickets = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('tickets')
         .select(`
           *,
           assigned_profile:profiles!tickets_assigned_to_fkey(id, full_name, email, role),
           creator_profile:profiles!tickets_created_by_fkey(id, full_name, email, role)
         `)
-        .order(sortColumn, { ascending: sortDirection === 'asc' })
+
+      // Apply filters from URL
+      if (activeStatus) {
+        query = query.eq('status', activeStatus)
+      }
+      if (activePriority) {
+        query = query.eq('priority', activePriority)
+      }
+
+      // Apply sorting
+      query = query.order(sortColumn, { ascending: sortDirection === 'asc' })
+
+      const { data, error } = await query
 
       if (error) {
         console.error('Error fetching tickets:', error)
@@ -112,7 +129,8 @@ export default function EnhancedTicketList() {
 
   useEffect(() => {
     fetchTickets()
-  }, [sortColumn, sortDirection])
+    // Add activeStatus and activePriority to dependencies
+  }, [sortColumn, sortDirection, activeStatus, activePriority])
 
   const handleSort = (columnId: string) => {
     if (columnId === sortColumn) {
