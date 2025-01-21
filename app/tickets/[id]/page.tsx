@@ -32,6 +32,11 @@ export default async function TicketPage({ params }: { params: { id: string } })
     .single()
 
   const userRole = profile?.role
+  
+  // Check if this is a visitor ticket
+  const isVisitorTicket = ticket.metadata?.is_visitor === true
+  const visitorName = ticket.metadata?.visitor_name
+  const visitorEmail = ticket.metadata?.visitor_email
 
   return (
     <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
@@ -67,7 +72,16 @@ export default async function TicketPage({ params }: { params: { id: string } })
             <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
               <dt className="text-sm font-medium leading-6 text-gray-900">Created By</dt>
               <dd className="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                {ticket.creator.full_name || ticket.creator.email}
+                {isVisitorTicket ? (
+                  <span>
+                    {visitorName} ({visitorEmail})
+                    <span className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                      Visitor
+                    </span>
+                  </span>
+                ) : (
+                  ticket.creator?.full_name || ticket.creator?.email
+                )}
               </dd>
             </div>
 
